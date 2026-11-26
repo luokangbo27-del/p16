@@ -47,7 +47,7 @@
     <div class="row">
       <label>和值</label><input class="small" type="number" id="sumMin" value="8"> ~ <input class="small" type="number" id="sumMax" value="29">
       <label>历史窗口</label><input class="small" type="number" id="histWin" value="1000">
-      <label>对数排除(两两成对,逗号分隔)</label><input class="mid" type="text" id="pairEx" value="49,27">
+      <label>对数排除</label><select style="background:#0b1120;border:1px solid #2a3550;color:#e8eefc;border-radius:8px;padding:6px 8px;font-size:13px;margin-right:6px" id="pairSel1"><option value="">无</option><option value="05">05</option><option value="16">16</option><option value="27">27</option><option value="38">38</option><option value="49">49</option></select><select style="background:#0b1120;border:1px solid #2a3550;color:#e8eefc;border-radius:8px;padding:6px 8px;font-size:13px;margin-right:6px" id="pairSel2"><option value="">无</option><option value="05">05</option><option value="16">16</option><option value="27">27</option><option value="38">38</option><option value="49">49</option></select>
       <label><input type="checkbox" id="oeOn" checked>单双隔期</label>
       <label><input type="checkbox" id="szOn" checked>大小隔期</label>
       <label><input type="checkbox" id="s4On" checked>4顺子</label>
@@ -123,13 +123,14 @@ function saveExtra(){
 /* ============ 规则 ============ */
 const OE13 = ['单单单双','单双单双','单单双双','单双单单','双双双单','双单单双','双单双双','双双单双','单双双单','双单双单','双双单单','单单单单','单单双单'];
 const SZ8 = ['大大小大','小大小小','大小小小','小小大大','大大大大','大小大大','小大大大','大小小大'];
-const DEFAULTS = {sumMin:8,sumMax:29,histWin:1000,pairEx:'49,27',oeOn:true,szOn:true,s4On:true,s3On:true,
+const DEFAULTS = {sumMin:8,sumMax:29,histWin:1000,pairSel1:'',pairSel2:'',oeOn:true,szOn:true,s4On:true,s3On:true,
   s1:'123456789,012345789,012345689,012345789', s2:'01256789,01345678,03456789,01345678', s3:'0123489,1246789,0123678,0245679'};
 function getCfg(){
   const g=id=>document.getElementById(id).value;
   const c = {
     sumMin:+g('sumMin'), sumMax:+g('sumMax'), histWin:+g('histWin'),
-    pairEx:g('pairEx'),
+    pairSel1:g('pairSel1'),
+    pairSel2:g('pairSel2'),
     oeOn:document.getElementById('oeOn').checked,
     szOn:document.getElementById('szOn').checked,
     s4On:document.getElementById('s4On').checked,
@@ -138,7 +139,7 @@ function getCfg(){
           g('s2w')+','+g('s2q')+','+g('s2b')+','+g('s2s'),
           g('s3w')+','+g('s3q')+','+g('s3b')+','+g('s3s')],
   };
-  c.pairs = c.pairEx.split(',').map(x=>x.trim()).filter(x=>x.length===2).map(x=>x.split(''));
+  c.pairs = [c.pairSel1, c.pairSel2].filter(x=>x && x.length===2).map(x=>x.split(''));
   return c;
 }
 function saveCfg(){ localStorage.setItem('p5_cfg', JSON.stringify(getCfg())); alert('参数已保存'); }
@@ -149,7 +150,8 @@ function loadCfg(){
   document.getElementById('sumMin').value=c.sumMin;
   document.getElementById('sumMax').value=c.sumMax;
   document.getElementById('histWin').value=c.histWin;
-  document.getElementById('pairEx').value=c.pairEx;
+  document.getElementById('pairSel1').value=c.pairSel1;
+  document.getElementById('pairSel2').value=c.pairSel2;
   document.getElementById('oeOn').checked=c.oeOn;
   document.getElementById('szOn').checked=c.szOn;
   document.getElementById('s4On').checked=c.s4On;
