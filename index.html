@@ -76,6 +76,7 @@
     <div class="row" style="margin-top:8px;">
       <label>新开奖号(4或5位)</label><input class="small" type="text" id="newNum" placeholder="如 40227" maxlength="5">
       <button onclick="addDraw()">加入最新开奖号并重算</button>
+      <button class="ghost" onclick="syncOfficial(true)">🔄 同步官网最新</button>
       <button class="ghost" onclick="recalc()">重新计算</button>
     </div>
     <div id="hitMsg" style="margin-top:8px;"></div>
@@ -314,11 +315,46 @@ function runBacktest(){
     document.getElementById('btNote').textContent='完成';
   },60);
 }
+/* ============ 官网同步 ============ */
+async function syncOfficial(showMsg){
+  const status = document.getElementById('hitMsg');
+  try {
+    const u='https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=350133&provinceId=0&pageSize=100&isVerify=1&pageNo=1&_='+Date.now();
+    const r = await fetch(u, {cache:'no-store'});
+    const j = await r.json();
+    const list = (j.value && j.value.list) || [];
+    if(!list.length) throw new Error('接口返回为空');
+    const official = new Map();
+    for(const it of list){
+      const n = String(it.lotteryDrawResult).replace(/\D/g,'');
+      if(n.length>=5) official.set(String(it.lotteryDrawNum), n);
+    }
+    const lastP = hist.length ? hist[hist.length-1].p : '0';
+    let added = 0;
+    for(const [p, full] of [...official.entries()].sort((a,b)=>Number(a[0])-Number(b[0]))){
+      if(Number(p) > Number(lastP)){
+        hist.push({p, n: full.slice(0,4)});
+        added++;
+      }
+    }
+    if(added){
+      saveExtra(); refreshInfo(); recalc();
+      const last = hist[hist.length-1];
+      if(showMsg) status.innerHTML = '<span class="ok">✅ 已同步官网最新开奖 '+added+' 期，最新：期'+last.p+' 开'+last.n+'</span>';
+    } else {
+      if(showMsg) status.innerHTML = '<span class="ok">✅ 已是最新（官方最新期'+ (list[0]?list[0].lotteryDrawNum:'?') +' 已在历史中）</span>';
+    }
+  } catch(e) {
+    if(showMsg) status.innerHTML = '<span class="warn">⚠️ 同步失败（网络或接口限制）：'+e.message+'。可手动输入开奖号加入。</span>';
+  }
+}
+
 /* ============ 初始化 ============ */
 loadCfg();
 loadHist();
 refreshInfo();
 recalc();
+syncOfficial(false);
 </script>
 </body>
 </html>
