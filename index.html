@@ -40,6 +40,11 @@
   #btOut th:first-child,#btOut td:first-child{width:56px}
   #btOut th:nth-child(2),#btOut td:nth-child(2){width:56px}
   #btOut .cl{} 
+  .chips-head{margin:10px 0 4px;color:#8fa3c8;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:6px 10px;border:1px solid #2a3550;border-radius:8px;background:#0b1120;color:#8fa3c8;font-size:13px;cursor:pointer;user-select:none}
+  .chip.on{background:#1d3b2a;border-color:#2f7d4f;color:#6ee7a0}
+  .mini{padding:3px 8px;font-size:12px}
 </style>
 </head>
 <body>
@@ -58,6 +63,10 @@
       <label><input type="checkbox" id="s4On" checked>4顺子</label>
       <label><input type="checkbox" id="s3On" checked>3顺子</label>
     </div>
+    <div class="chips-head">单双形态排除（点选=排除，共16种）<button class="ghost mini" onclick="pickAll('oeGrid',true)">全选</button><button class="ghost mini" onclick="pickAll('oeGrid',false)">清空</button></div>
+    <div class="chips" id="oeGrid"></div>
+    <div class="chips-head">大小形态排除（点选=排除，共16种）<button class="ghost mini" onclick="pickAll('szGrid',true)">全选</button><button class="ghost mini" onclick="pickAll('szGrid',false)">清空</button></div>
+    <div class="chips" id="szGrid"></div>
     <table id="setTable">
       <tr><th>固定码</th><th>万位(保留数字)</th><th>千位</th><th>百位</th><th>十位</th></tr>
       <tr><td>第一套</td><td><input id="s1w" class="mid" value="123456789"></td><td><input id="s1q" class="mid" value="012345789"></td><td><input id="s1b" class="mid" value="012345689"></td><td><input id="s1s" class="mid" value="012345789"></td></tr>
@@ -130,8 +139,35 @@ function saveExtra(){
 /* ============ 规则 ============ */
 const OE13 = ['单单单双','单双单双','单单双双','单双单单','双双双单','双单单双','双单双双','双双单双','单双双单','双单双单','双双单单','单单单单','单单双单'];
 const SZ8 = ['大大小大','小大小小','大小小小','小小大大','大大大大','大小大大','小大大大','大小小大'];
-const DEFAULTS = {sumMin:8,sumMax:29,histWin:1000,pairSel1:'',pairSel2:'',oeOn:true,szOn:true,s4On:true,s3On:true,
+const DEFAULTS = {sumMin:8,sumMax:29,histWin:1000,pairSel1:'',pairSel2:'',oeOn:true,szOn:true,s4On:true,s3On:true,oeSel:OE13.slice(),szSel:SZ8.slice(),
   s1:'123456789,012345789,012345689,012345789', s2:'01256789,01345678,03456789,01345678', s3:'0123489,1246789,0123678,0245679'};
+const OE_ALL=[];
+for(let i=0;i<16;i++){ let s=''; for(let b=3;b>=0;b--) s+=((i>>b)&1)?'双':'单'; OE_ALL.push(s); }
+const SZ_ALL=[];
+for(let i=0;i<16;i++){ let s=''; for(let b=3;b>=0;b--) s+=((i>>b)&1)?'大':'小'; SZ_ALL.push(s); }
+function buildChips(){
+  const mk=(id,arr)=>{
+    const box=document.getElementById(id);
+    box.innerHTML='';
+    for(const v of arr){
+      const d=document.createElement('div');
+      d.className='chip'; d.dataset.val=v; d.textContent=v;
+      d.onclick=()=>{ d.classList.toggle('on'); };
+      box.appendChild(d);
+    }
+  };
+  mk('oeGrid',OE_ALL); mk('szGrid',SZ_ALL);
+}
+function pickAll(id,on){
+  for(const el of document.querySelectorAll('#'+id+' .chip')){ el.classList.toggle('on', on); }
+}
+function applyChips(id,sel){
+  const set=new Set(sel||[]);
+  for(const el of document.querySelectorAll('#'+id+' .chip')){ el.classList.toggle('on', set.has(el.dataset.val)); }
+}
+function getSel(id){
+  return [...document.querySelectorAll('#'+id+' .chip.on')].map(el=>el.dataset.val);
+}
 function getCfg(){
   const g=id=>document.getElementById(id).value;
   const c = {
@@ -146,6 +182,8 @@ function getCfg(){
           g('s2w')+','+g('s2q')+','+g('s2b')+','+g('s2s'),
           g('s3w')+','+g('s3q')+','+g('s3b')+','+g('s3s')],
   };
+  c.oeSel = getSel('oeGrid');
+  c.szSel = getSel('szGrid');
   c.pairs = [c.pairSel1, c.pairSel2].filter(x=>x && x.length===2).map(x=>x.split(''));
   return c;
 }
@@ -163,6 +201,8 @@ function loadCfg(){
   document.getElementById('szOn').checked=c.szOn;
   document.getElementById('s4On').checked=c.s4On;
   document.getElementById('s3On').checked=c.s3On;
+  applyChips('oeGrid', c.oeSel || OE13);
+  applyChips('szGrid', c.szSel || SZ8);
   const set=(id,v)=>document.getElementById(id).value=v;
   set('s1w',c.s1.split(',')[0]);set('s1q',c.s1.split(',')[1]);set('s1b',c.s1.split(',')[2]);set('s1s',c.s1.split(',')[3]);
   set('s2w',c.s2.split(',')[0]);set('s2q',c.s2.split(',')[1]);set('s2b',c.s2.split(',')[2]);set('s2s',c.s2.split(',')[3]);
@@ -190,8 +230,8 @@ function stepsOf(cfg, set, t){
   steps.push(['排除三重', s=>struct(s)!=='triple']);
   steps.push(['排除双对子', s=>struct(s)!=='twopair']);
   for(const pr of cfg.pairs) steps.push(['对数排除'+pr.join(''), s=>!hasPair(s,pr)]);
-  if(cfg.oeOn&&P2&&OE13.includes(oeP(P2))) steps.push(['单双隔期排'+oeP(P2), s=>oeP(s)!==oeP(P2)]);
-  if(cfg.szOn&&P2&&SZ8.includes(szP(P2))) steps.push(['大小隔期排'+szP(P2), s=>szP(s)!==szP(P2)]);
+  if(cfg.oeOn&&P2&&cfg.oeSel.includes(oeP(P2))) steps.push(['单双隔期排'+oeP(P2), s=>oeP(s)!==oeP(P2)]);
+  if(cfg.szOn&&P2&&cfg.szSel.includes(szP(P2))) steps.push(['大小隔期排'+szP(P2), s=>szP(s)!==szP(P2)]);
   if(cfg.s4On) steps.push(['排除4顺子', s=>!is4(dig(s,0),dig(s,1),dig(s,2),dig(s,3))]);
   if(cfg.s3On) steps.push(['排除3顺子', s=>!(is3(dig(s,0),dig(s,1),dig(s,2))||is3(dig(s,1),dig(s,2),dig(s,3)))]);
   return steps;
@@ -468,6 +508,7 @@ function cleanLocal(){
 }
 
 /* ============ 初始化 ============ */
+buildChips();
 loadCfg();
 loadHist();
 refreshInfo();
