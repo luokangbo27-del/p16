@@ -92,7 +92,7 @@
   <div class="card">
     <h2>④ 回测(每期只用开奖前数据)</h2>
     <div class="row">
-      <label>回测最近</label><input class="small" type="number" id="btN" value="50">
+      <label>回测最近</label><input class="small" type="number" id="btN" value="20">
       <label>期</label>
       <button onclick="runBacktest()">运行回测</button>
       <span class="note" id="btNote"></span>
@@ -311,33 +311,45 @@ async function addDraw(){
   document.getElementById('newNum').value='';
 }
 function runBacktest(){
-  const N=+document.getElementById('btN').value||50;
+  const N=+document.getElementById('btN').value||20;
   if(N>500){alert('回测最多500期');return;}
   const cfg=getCfg();
   const out=document.getElementById('btOut');
-  document.getElementById('btNote').textContent='计算中...';
+  document.getElementById('btNote').textContent='计算中（每个回测期都要重算一次三套池，请稍候）...';
   setTimeout(()=>{
     const saved=hist;
-    let h='<table><tr><th>固定码</th><th>近'+N+'期命中</th><th>命中率</th><th>平均候选</th><th>未命中期(开✗被杀规则)</th></tr>';
-    for(let i=0;i<3;i++){
-      let hits=0,sum=0; const miss=[];
-      const t0=Math.max(hist.length-N,2);
-      for(let t=t0;t<hist.length;t++){
-        const actual=hist[t].n;
-        hist=hist.slice(0,t);
+    const t0=Math.max(hist.length-N,2);
+    const n=hist.length-t0;
+    const rows=[];
+    const hits=[0,0,0], avg=[0,0,0];
+    const whyCnt=[{}, {}, {}];
+    for(let t=t0;t<hist.length;t++){
+      const period=saved[t].p, actual=saved[t].n;
+      hist=saved.slice(0,t);
+      const cells=[];
+      for(let i=0;i<3;i++){
         const {pool}=genPool(cfg,i,t);
-        const why=whyMiss(actual,cfg,i,t);
-        hist=saved;
-        sum+=pool.length;
-        if(pool.includes(actual)) hits++;
-        else miss.push('期'+saved[t].p+'开'+actual+'✗'+(why||'?'));
+        avg[i]+=pool.length;
+        if(pool.includes(actual)){ hits[i]++; cells.push('<span class="ok">中√</span>'); }
+        else {
+          const why=whyMiss(actual,cfg,i,t)||'未知';
+          whyCnt[i][why]=(whyCnt[i][why]||0)+1;
+          cells.push('<span class="bad">✗</span> <span class="note">'+why+'</span>');
+        }
       }
-      const n=hist.length-t0;
-      h+='<tr><td>第'+(i+1)+'套</td><td class="num">'+hits+'/'+n+'</td><td class="num">'+(hits/n*100).toFixed(1)+'%</td><td class="num">'+(sum/n).toFixed(0)+'</td><td class="note">'+miss.slice(0,10).join(' ')+(miss.length>10?' …共'+miss.length+'期':'')+'</td></tr>';
+      hist=saved;
+      rows.push('<tr><td class="num">'+period+'</td><td class="num">'+actual+'</td>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>');
+    }
+    let h='<div class="note" style="margin:8px 0">近'+n+'期逐期明细 · 每期只用开奖前数据计算 · 原因 = 开奖号被哪条规则排除（第一条不满足的规则）</div>';
+    h+='<table><tr><th>期号</th><th>开奖(前四位)</th><th>第1套</th><th>第2套</th><th>第3套</th></tr>'+rows.join('')+'</table>';
+    h+='<table style="margin-top:12px"><tr><th>套别</th><th>命中</th><th>命中率</th><th>平均候选</th><th>未命中原因统计</th></tr>';
+    for(let i=0;i<3;i++){
+      const why=Object.entries(whyCnt[i]).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+'×'+v).join('、')||'—';
+      h+='<tr><td>第'+(i+1)+'套</td><td class="num">'+hits[i]+'/'+n+'</td><td class="num">'+(n?(hits[i]/n*100).toFixed(1):0)+'%</td><td class="num">'+(n?(avg[i]/n).toFixed(0):0)+'</td><td class="note">'+why+'</td></tr>';
     }
     h+='</table>';
     out.innerHTML=h;
-    document.getElementById('btNote').textContent='完成';
+    document.getElementById('btNote').textContent='完成（'+n+'期）';
   },60);
 }
 /* ============ 官网数据拉取 ============ */
