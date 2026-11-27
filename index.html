@@ -285,9 +285,15 @@ async function addDraw(){
       if (on !== n) { note = '<br><span class="warn">⚠️ 你输入的 '+n+' 与官网 期'+newP+' 开'+on+' 不一致，已按官网校正。</span>'; n = on; }
       else note = '<br><span class="note">✅ 已与官网核对一致。</span>';
     } else {
-      note = '<br><span class="warn">官网暂未公布 期'+newP+'，先按输入记录（联网后会自动校正）。</span>';
+      document.getElementById('newNum').value='';
+      status.innerHTML='<span class="warn">⛔ 官网还没有 期'+newP+' 的开奖记录，已拒绝添加（未开奖的号码不能录入）。请稍后点「🔄 同步官网最新」或重新输入。</span>';
+      return;
     }
-  } catch(e) { note = '<br><span class="warn">官网核对失败（'+e.message+'），先按输入记录。</span>'; }
+  } catch(e) {
+    document.getElementById('newNum').value='';
+    status.innerHTML='<span class="warn">⛔ 官网核对失败（'+e.message+'），为避免错误记录，本次未添加。请联网后再试。</span>';
+    return;
+  }
   let msg='<b>命中检查(开奖前冻结池):</b> ';
   if(cache){
     for(let i=0;i<3;i++) msg+='第'+(i+1)+'套 '+(cache[i].pool.includes(n)?'<span class="ok">命中✓</span> ':'<span class="bad">未中✗</span> ');
@@ -381,11 +387,12 @@ async function syncOfficial(showMsg){
     let prevN = arr.length ? arr[arr.length-1].n : '';
     let dropped = 0;
     for (const ex of extras.sort((a,b)=>Number(a.p)-Number(b.p))) {
-      if (+ex.p <= offLastP) { dropped++; continue; }   // 官网已有该期 → 以官网为准
-      if (ex.n === prevN) { dropped++; continue; }       // 与上期同号 → 重复录入
-      if (merged.has(ex.p)) continue;
-      arr.push({p:String(ex.p), n:ex.n});
-      prevN = ex.n;
+      if (!official.has(String(ex.p))) { dropped++; continue; }  // 官网没有这期 → 丢弃（未经核对）
+      const officialN = official.get(String(ex.p)).slice(0,4);
+      if (ex.n !== officialN) { fixed++; }                        // 与官网不符 → 以官网为准
+      if (merged.has(String(ex.p))) continue;
+      arr.push({p:String(ex.p), n:officialN});
+      prevN = officialN;
     }
     arr.sort((a,b)=>Number(a.p)-Number(b.p));
     const seen=new Set(); const out=[];
