@@ -230,16 +230,10 @@ function stepsOf(cfg, set, t){
   steps.push(['排除三重', s=>struct(s)!=='triple']);
   steps.push(['排除双对子', s=>struct(s)!=='twopair']);
   for(const pr of cfg.pairs) steps.push(['对数排除'+pr.join(''), s=>!hasPair(s,pr)]);
-  const oeP2 = P2 ? oeP(P2) : null;
-  if(cfg.oeOn && cfg.oeSel.length){
-    const oeHit = !!(oeP2 && cfg.oeSel.includes(oeP2));
-    steps.push([oeHit ? '单双排'+oeP2 : '单双选'+cfg.oeSel.join('/')+'(未中)', s=>oeHit ? oeP(s)!==oeP2 : true]);
-  }
-  const szP2 = P2 ? szP(P2) : null;
-  if(cfg.szOn && cfg.szSel.length){
-    const szHit = !!(szP2 && cfg.szSel.includes(szP2));
-    steps.push([szHit ? '大小排'+szP2 : '大小选'+cfg.szSel.join('/')+'(未中)', s=>szHit ? szP(s)!==szP2 : true]);
-  }
+  if(cfg.oeSel.length) steps.push(['单双排'+cfg.oeSel.join('/'), s=>!cfg.oeSel.includes(oeP(s))]);
+  if(cfg.oeOn && P2 && OE13.includes(oeP(P2))) steps.push(['单双隔期排'+oeP(P2), s=>oeP(s)!==oeP(P2)]);
+  if(cfg.szSel.length) steps.push(['大小排'+cfg.szSel.join('/'), s=>!cfg.szSel.includes(szP(s))]);
+  if(cfg.szOn && P2 && SZ8.includes(szP(P2))) steps.push(['大小隔期排'+szP(P2), s=>szP(s)!==szP(P2)]);
   if(cfg.s4On) steps.push(['排除4顺子', s=>!is4(dig(s,0),dig(s,1),dig(s,2),dig(s,3))]);
   if(cfg.s3On) steps.push(['排除3顺子', s=>!(is3(dig(s,0),dig(s,1),dig(s,2))||is3(dig(s,1),dig(s,2),dig(s,3)))]);
   return steps;
