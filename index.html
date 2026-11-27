@@ -268,12 +268,26 @@ function dlPool(i){
   a.download='p5_set'+(i+1)+'_candidates.txt';
   a.click();
 }
-function addDraw(){
+async function addDraw(){
+  const status = document.getElementById('hitMsg');
   const v=document.getElementById('newNum').value.replace(/\D/g,'');
   if(v.length<4){ alert('请输入4位或5位开奖号'); return; }
-  const n=v.slice(0,4).padStart(4,'0');
+  let n=v.slice(0,4).padStart(4,'0');
   const lastN = hist.length ? hist[hist.length-1].n : '';
-  if (n === lastN) { document.getElementById('hitMsg').innerHTML='<span class="warn">⚠️ 与上一期开奖号相同（疑似重复录入），已忽略。最新仍是 期'+hist[hist.length-1].p+' 开'+lastN+'</span>'; document.getElementById('newNum').value=''; return; }
+  if (n === lastN) { status.innerHTML='<span class="warn">⚠️ 与上一期开奖号相同（疑似重复录入），已忽略。最新仍是 期'+hist[hist.length-1].p+' 开'+lastN+'</span>'; document.getElementById('newNum').value=''; return; }
+  const lastP=hist.length? +hist[hist.length-1].p : 0;
+  const newP = String(lastP+1);
+  let note='';
+  try {
+    const official = await fetchOfficial(1);
+    if (official.has(newP)) {
+      const on = official.get(newP).slice(0,4);
+      if (on !== n) { note = '<br><span class="warn">⚠️ 你输入的 '+n+' 与官网 期'+newP+' 开'+on+' 不一致，已按官网校正。</span>'; n = on; }
+      else note = '<br><span class="note">✅ 已与官网核对一致。</span>';
+    } else {
+      note = '<br><span class="warn">官网暂未公布 期'+newP+'，先按输入记录（联网后会自动校正）。</span>';
+    }
+  } catch(e) { note = '<br><span class="warn">官网核对失败（'+e.message+'），先按输入记录。</span>'; }
   let msg='<b>命中检查(开奖前冻结池):</b> ';
   if(cache){
     for(let i=0;i<3;i++) msg+='第'+(i+1)+'套 '+(cache[i].pool.includes(n)?'<span class="ok">命中✓</span> ':'<span class="bad">未中✗</span> ');
@@ -281,9 +295,8 @@ function addDraw(){
       msg+='<br><span class="note">三套全未命中。</span>';
     }
   } else { msg='<span class="warn">请先点"重新计算"生成冻结池再输入开奖号</span>'; }
-  document.getElementById('hitMsg').innerHTML=msg;
-  const lastP=hist.length? +hist[hist.length-1].p : 0;
-  hist.push({p:String(lastP+1), n});
+  status.innerHTML=msg+note;
+  hist.push({p:newP, n});
   saveExtra();
   refreshInfo();
   recalc();
@@ -319,35 +332,48 @@ function runBacktest(){
     document.getElementById('btNote').textContent='完成';
   },60);
 }
+/* ============ 官网数据拉取 ============ */
+const OFF_API = 'https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=350133&provinceId=0&pageSize=100&isVerify=1&pageNo=';
+let _offCache = null, _offCacheAt = 0;
+async function fetchOfficial(maxPages){
+  maxPages = maxPages || 3;
+  if (_offCache && Date.now() - _offCacheAt < 60000) return _offCache;
+  const baseArr = BASE_DATA.split(',').filter(Boolean);
+  const baseLastP = baseArr.length ? Number(baseArr[baseArr.length-1].slice(0, baseArr[baseArr.length-1].indexOf(':'))) : 0;
+  const official = new Map();
+  let page = 1;
+  while (page <= maxPages) {
+    const r = await fetch(OFF_API + page + '&_=' + Date.now(), {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    const list = (j.value && j.value.list) || [];
+    if (!list.length) break;
+    for (const it of list) {
+      const n = String(it.lotteryDrawResult).replace(/\D/g,'');
+      if (n.length >= 5) official.set(String(it.lotteryDrawNum), n);
+    }
+    if (Number(list[list.length-1].lotteryDrawNum) <= baseLastP) break;
+    page++;
+  }
+  if (!official.size) throw new Error('接口返回为空');
+  _offCache = official; _offCacheAt = Date.now();
+  return official;
+}
+
 /* ============ 官网同步 ============ */
 async function syncOfficial(showMsg){
   const status = document.getElementById('hitMsg');
   try {
-    const api='https://webapi.sporttery.cn/gateway/lottery/getHistoryPageListV1.qry?gameNo=350133&provinceId=0&pageSize=100&isVerify=1&pageNo=';
+    const official = await fetchOfficial(10);
     const baseArr = BASE_DATA.split(',').filter(Boolean);
-    const baseLastP = Number(baseArr[baseArr.length-1].slice(0, baseArr[baseArr.length-1].indexOf(':')));
-    const official = new Map();
-    let page = 1, guard = 0;
-    while (guard++ < 10) {
-      const r = await fetch(api + page + '&_=' + Date.now(), {cache:'no-store'});
-      const j = await r.json();
-      const list = (j.value && j.value.list) || [];
-      if (!list.length) break;
-      for (const it of list) {
-        const n = String(it.lotteryDrawResult).replace(/\D/g,'');
-        if (n.length >= 5) official.set(String(it.lotteryDrawNum), n);
-      }
-      if (Number(list[list.length-1].lotteryDrawNum) <= baseLastP) break;
-      page++;
-    }
-    if (!official.size) throw new Error('接口返回为空');
-
-    // 内置数据为底，官网数据覆盖（官网为准）
     const merged = new Map();
     for (const it of baseArr) { const k=it.indexOf(':'); merged.set(it.slice(0,k), it.slice(k+1)); }
-    for (const [p, full] of official) merged.set(p, full.slice(0,4));
-
-    // 本地手动添加的“未来期”保留；与上一期同号的（重复录入）丢弃
+    let fixed = 0;
+    for (const [p, full] of official) {
+      const v = full.slice(0,4);
+      if (merged.has(p) && merged.get(p) !== v) fixed++;
+      merged.set(p, v);
+    }
     const saved = localStorage.getItem('p5_extra_draws');
     const extras = saved ? JSON.parse(saved) : [];
     const offLastP = Math.max(...[...official.keys()].map(Number));
@@ -355,8 +381,8 @@ async function syncOfficial(showMsg){
     let prevN = arr.length ? arr[arr.length-1].n : '';
     let dropped = 0;
     for (const ex of extras.sort((a,b)=>Number(a.p)-Number(b.p))) {
-      if (+ex.p <= offLastP) { continue; }
-      if (ex.n === prevN) { dropped++; continue; }
+      if (+ex.p <= offLastP) { dropped++; continue; }   // 官网已有该期 → 以官网为准
+      if (ex.n === prevN) { dropped++; continue; }       // 与上期同号 → 重复录入
       if (merged.has(ex.p)) continue;
       arr.push({p:String(ex.p), n:ex.n});
       prevN = ex.n;
@@ -366,11 +392,16 @@ async function syncOfficial(showMsg){
     for(const it of arr){ if(seen.has(it.p)) continue; seen.add(it.p); out.push(it); }
     hist = out;
     saveExtra(); refreshInfo(); recalc();
-
+    localStorage.setItem('p5_lastcheck', String(Date.now()));
     const last = hist[hist.length-1], prev = hist[hist.length-2];
-    if (showMsg) status.innerHTML = '<span class="ok">✅ 已对接官网：最新 期'+last.p+' 开'+last.n+' · 上期 期'+(prev?prev.p:'-')+' 开'+(prev?prev.n:'-')+' · 共 '+hist.length+' 期'+(dropped?'（已自动清理 '+dropped+' 条重复录入）':'')+'</span>';
+    if (showMsg) {
+      let s2 = '✅ 已对照官网：最新 期'+last.p+' 开'+last.n+' · 上期 '+prev.p+' 开'+prev.n+' · 共 '+hist.length+' 期';
+      if (fixed) s2 += ' · 校正 '+fixed+' 期';
+      if (dropped) s2 += ' · 清理重复 '+dropped+' 条';
+      status.innerHTML = '<span class="ok">'+s2+'</span>';
+    }
   } catch(e) {
-    if (showMsg) status.innerHTML = '<span class="warn">⚠️ 同步失败（网络或接口限制）：'+e.message+'。可手动输入开奖号。</span>';
+    if (showMsg) status.innerHTML = '<span class="warn">⚠️ 官网核对失败（'+e.message+'），历史未校验；联网后可再点「🔄 同步官网最新」。</span>';
   }
 }
 
