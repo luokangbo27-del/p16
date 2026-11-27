@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>排列五前四位动态缩水工具 (v116规则)</title>
+<title>排列五前四位动态缩水工具 (v116规则 · 2026.11.27)</title>
 <style>
   :root{--bg:#0f1420;--panel:#171e2e;--line:#2a3550;--txt:#e8eefc;--dim:#8fa3c8;--acc:#4da3ff;--ok:#3ddc84;--bad:#ff5c72;--warn:#ffb84d;}
   *{box-sizing:border-box}
@@ -77,6 +77,7 @@
       <label>新开奖号(4或5位)</label><input class="small" type="text" id="newNum" placeholder="如 40227" maxlength="5">
       <button onclick="addDraw()">加入最新开奖号并重算</button>
       <button class="ghost" onclick="syncOfficial(true)">🔄 同步官网最新</button>
+      <button class="ghost" onclick="cleanLocal()">🧹 清理本地异常记录</button>
       <button class="ghost" onclick="recalc()">重新计算</button>
     </div>
     <div id="hitMsg" style="margin-top:8px;"></div>
@@ -109,7 +110,8 @@ function loadHist(){
   const extra = saved ? JSON.parse(saved) : [];
   const arr = [];
   for (const it of BASE_DATA.split(',')) { if(!it) continue; const k=it.indexOf(':'); arr.push({p:it.slice(0,k), n:it.slice(k+1)}); }
-  for (const it of extra) arr.push({p:it.p, n:it.n});
+  const baseLastP = arr.length ? Number(arr[arr.length-1].p) : 0;
+  for (const it of extra) { if (Number(it.p) <= baseLastP) continue; arr.push({p:it.p, n:it.n}); }
   arr.sort((a,b)=>a.p-b.p);
   const seen=new Set(); const out=[];
   for (const it of arr){ if(seen.has(it.p)) continue; seen.add(it.p); out.push(it); }
@@ -347,12 +349,25 @@ async function fetchOfficial(maxPages){
   const baseArr = BASE_DATA.split(',').filter(Boolean);
   const baseLastP = baseArr.length ? Number(baseArr[baseArr.length-1].slice(0, baseArr[baseArr.length-1].indexOf(':'))) : 0;
   const official = new Map();
-  let page = 1;
+  let page = 1, useProxy = false;
   while (page <= maxPages) {
-    const r = await fetch(OFF_API + page + '&_=' + Date.now(), {cache:'no-store'});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
-    const list = (j.value && j.value.list) || [];
+    const u = OFF_API + page + '&_=' + Date.now();
+    let j = null;
+    if (!useProxy) {
+      try {
+        const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 8000);
+        const r = await fetch(u, {cache:'no-store', signal: ctrl.signal});
+        clearTimeout(t);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        j = await r.json();
+      } catch(e) { useProxy = true; }
+    }
+    if (useProxy) {
+      const pr = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(u), {cache:'no-store'});
+      if (!pr.ok) throw new Error('HTTP ' + pr.status + '（代理）');
+      j = await pr.json();
+    }
+    const list = (j && j.value && j.value.list) || [];
     if (!list.length) break;
     for (const it of list) {
       const n = String(it.lotteryDrawResult).replace(/\D/g,'');
@@ -410,6 +425,12 @@ async function syncOfficial(showMsg){
   } catch(e) {
     if (showMsg) status.innerHTML = '<span class="warn">⚠️ 官网核对失败（'+e.message+'），历史未校验；联网后可再点「🔄 同步官网最新」。</span>';
   }
+}
+
+function cleanLocal(){
+  localStorage.removeItem('p5_extra_draws');
+  loadHist(); refreshInfo(); recalc();
+  syncOfficial(true);
 }
 
 /* ============ 初始化 ============ */
