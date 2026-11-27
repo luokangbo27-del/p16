@@ -35,6 +35,11 @@
   .tabs button.on{background:var(--acc);color:#04101f;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   @media(max-width:760px){.grid2{grid-template-columns:1fr;}}
+  #btOut table{width:100%;table-layout:fixed;font-size:12px}
+  #btOut th,#btOut td{padding:3px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #btOut th:first-child,#btOut td:first-child{width:56px}
+  #btOut th:nth-child(2),#btOut td:nth-child(2){width:56px}
+  #btOut .cl{} 
 </style>
 </head>
 <body>
@@ -310,6 +315,22 @@ async function addDraw(){
   recalc();
   document.getElementById('newNum').value='';
 }
+function shortWhy(w){
+  const m={
+    '历史1000期已开':'历史',
+    '结构(全同/三重/双对)':'结构',
+    '结构':'结构',
+    '和值8-29':'和值',
+    '单双隔期':'单双',
+    '大小隔期':'大小',
+    '4顺子':'4顺',
+    '3顺子':'3顺'
+  };
+  if(m[w]) return m[w];
+  if(w.startsWith('固定码第')) return '码'+w.replace(/[^0-9]/g,'');
+  if(w.startsWith('对数排除')) return '对数'+w.replace(/[^0-9]/g,'');
+  return w;
+}
 function runBacktest(){
   const N=+document.getElementById('btN').value||20;
   if(N>500){alert('回测最多500期');return;}
@@ -334,7 +355,7 @@ function runBacktest(){
         else {
           const why=whyMiss(actual,cfg,i,t)||'未知';
           whyCnt[i][why]=(whyCnt[i][why]||0)+1;
-          cells.push('<span class="bad">✗</span> <span class="note">'+why+'</span>');
+          cells.push('<span class="bad">✗</span> <span class="note" title="'+why+'">'+shortWhy(why)+'</span>');
         }
       }
       hist=saved;
@@ -348,6 +369,7 @@ function runBacktest(){
       h+='<tr><td>第'+(i+1)+'套</td><td class="num">'+hits[i]+'/'+n+'</td><td class="num">'+(n?(hits[i]/n*100).toFixed(1):0)+'%</td><td class="num">'+(n?(avg[i]/n).toFixed(0):0)+'</td><td class="note">'+why+'</td></tr>';
     }
     h+='</table>';
+    h+='<div class="note" style="margin-top:6px">图例：码1/码2/码3=固定码第1/2/3套 · 历史=历史近1000期已开 · 结构=排全同/三重/双对 · 和值=和值8-29 · 单双/大小=隔期名单 · 4顺/3顺=顺子 · 对数=两数字同时出现</div>';
     out.innerHTML=h;
     document.getElementById('btNote').textContent='完成（'+n+'期）';
   },60);
