@@ -67,7 +67,7 @@
       <label>大小形态排除</label><select style="background:#0b1120;border:1px solid #2a3550;color:#e8eefc;border-radius:8px;padding:6px 8px;font-size:13px;margin-right:6px" id="szSel"><option value="">无</option><option value="小小小小">小小小小</option><option value="小小小大">小小小大</option><option value="小小大小">小小大小</option><option value="小小大大">小小大大</option><option value="小大小小">小大小小</option><option value="小大小大">小大小大</option><option value="小大大小">小大大小</option><option value="小大大大">小大大大</option><option value="大小小小">大小小小</option><option value="大小小大">大小小大</option><option value="大小大小">大小大小</option><option value="大小大大">大小大大</option><option value="大大小小">大大小小</option><option value="大大小大">大大小大</option><option value="大大大小">大大大小</option><option value="大大大大">大大大大</option></select>
     <table id="setTable">
       <tr><th>固定码</th><th>万位(保留数字)</th><th>千位</th><th>百位</th><th>十位</th></tr>
-      <tr><td>第一套</td><td><input id="s1w" class="mid" value="012345689"></td><td><input id="s1q" class="mid" value="012456789"></td><td><input id="s1b" class="mid" value="012346789"></td><td><input id="s1s" class="mid" value="012456789"></td></tr>
+      <tr><td>第一套</td><td><input id="s1w" class="mid" value="012345689"></td><td><input id="s1q" class="mid" value="123456789"></td><td><input id="s1b" class="mid" value="012346789"></td><td><input id="s1s" class="mid" value="012456789"></td></tr>
       <tr><td>第二套</td><td><input id="s2w" class="mid" value="01245678"></td><td><input id="s2q" class="mid" value="01356789"></td><td><input id="s2b" class="mid" value="01234569"></td><td><input id="s2s" class="mid" value="02345678"></td></tr>
       <tr><td>第三套</td><td><input id="s3w" class="mid" value="0124579"></td><td><input id="s3q" class="mid" value="0156789"></td><td><input id="s3b" class="mid" value="0134569"></td><td><input id="s3s" class="mid" value="0245678"></td></tr>
     </table>
@@ -138,7 +138,7 @@ function saveExtra(){
 const OE13 = ['单单单双','单双单双','单单双双','单双单单','双双双单','双单单双','双单双双','双双单双','单双双单','双单双单','双双单单','单单单单','单单双单'];
 const SZ8 = ['大大小大','小大小小','大小小小','小小大大','大大大大','大小大大','小大大大','大小小大'];
 const DEFAULTS = {sumMin:8,sumMax:29,histWin:1000,pairSel1:'',pairSel2:'',oeOn:true,szOn:true,s4On:true,s3On:true,oeSel:'',szSel:'',
-  s1:'012345689,012456789,012346789,012456789', s2:'01245678,01356789,01234569,02345678', s3:'0124579,0156789,0134569,0245678'};
+  s1:'012345689,123456789,012346789,012456789', s2:'01245678,01356789,01234569,02345678', s3:'0124579,0156789,0134569,0245678'};
 const OE_ALL=[];
 for(let i=0;i<16;i++){ let s=''; for(let b=3;b>=0;b--) s+=((i>>b)&1)?'双':'单'; OE_ALL.push(s); }
 const SZ_ALL=[];
@@ -185,10 +185,10 @@ function getCfg(){
   c.pairs = [c.pairSel1, c.pairSel2].filter(x=>x && x.length===2).map(x=>x.split(''));
   return c;
 }
-function saveCfg(){ localStorage.setItem('p5_cfg4', JSON.stringify(getCfg())); alert('参数已保存'); }
-function resetCfg(){ localStorage.removeItem('p5_cfg4'); loadCfg(); alert('已恢复默认参数'); }
+function saveCfg(){ localStorage.setItem('p5_cfg5', JSON.stringify(getCfg())); alert('参数已保存'); }
+function resetCfg(){ localStorage.removeItem('p5_cfg5'); loadCfg(); alert('已恢复默认参数'); }
 function loadCfg(){
-  const saved = localStorage.getItem('p5_cfg4');
+  const saved = localStorage.getItem('p5_cfg5');
   const c = saved ? {...DEFAULTS, ...JSON.parse(saved)} : DEFAULTS;
   document.getElementById('sumMin').value=c.sumMin;
   document.getElementById('sumMax').value=c.sumMax;
