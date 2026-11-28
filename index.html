@@ -99,6 +99,7 @@
   <div class="card">
     <h2>③ 三套候选池</h2>
     <div class="tabs" id="tabs"></div>
+    <div class="note" id="totalInfo" style="margin:8px 0"></div>
     <div id="setOut"></div>
   </div>
 
@@ -290,6 +291,12 @@ function recalc(){
   if(curTab>2)curTab=0;
   renderTabs();
   showSet(curTab);
+  // 三套合计 + 去重合计
+  const t1=cache[0].pool.length, t2=cache[1].pool.length, t3=cache[2].pool.length;
+  const sum=t1+t2+t3;
+  const uni=new Set([...cache[0].pool, ...cache[1].pool, ...cache[2].pool]).size;
+  const el=document.getElementById('totalInfo');
+  if(el) el.innerHTML='三套合计: <b class="big">'+sum+'</b> 组（第1套 '+t1+' + 第2套 '+t2+' + 第3套 '+t3+'）· 去重后 <b>'+uni+'</b> 组';
 }
 function renderTabs(){
   const tabs=document.getElementById('tabs').children;
