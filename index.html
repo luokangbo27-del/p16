@@ -310,13 +310,34 @@ function showSet(i){
   for(const f of funnel) h+='<tr><td>'+f[0]+'</td><td class="num">'+f[1]+'</td><td class="num">'+f[2]+'</td><td class="num">'+f[3]+'</td></tr>';
   h+='</table>';
   h+='<p>最终剩余: <b class="big">'+pool.length+'</b> 组（重复0 违规0）</p>';
-  h+='<div class="row"><button onclick="copyPool('+i+')">复制第'+(i+1)+'套全部号码</button><button class="ghost" onclick="dlPool('+i+')">下载txt</button></div>';
+  const _n=pool.length, _sz=Math.ceil(_n/3);
+  const _b1=Math.min(_sz,_n), _b2=Math.max(0,Math.min(_sz,_n-_sz)), _b3=Math.max(0,_n-2*_sz);
+  h+='<div class="row"><button onclick="copyPool('+i+')">复制第'+(i+1)+'套全部('+_n+')</button>'+
+     '<button class="ghost" onclick="copyBatch('+i+',0)">复制一批('+_b1+')</button>'+
+     '<button class="ghost" onclick="copyBatch('+i+',1)">复制二批('+_b2+')</button>'+
+     '<button class="ghost" onclick="copyBatch('+i+',2)">复制三批('+_b3+')</button>'+
+     '<button class="ghost" onclick="dlPool('+i+')">下载txt</button></div>';
   h+='<div class="poolbox" id="poolbox'+i+'">'+pool.join(' ')+'</div>';
   document.getElementById('setOut').innerHTML=h;
 }
 function copyPool(i){
   const t=cache[i].pool.join(' ');
   const done=()=>alert('已复制 '+cache[i].pool.length+' 组');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done,done); }
+  else{
+    const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
+    try{document.execCommand('copy');}catch(e){}
+    document.body.removeChild(ta); done();
+  }
+}
+function copyBatch(i,k){
+  if(!cache||!cache[i]) return;
+  const pool=cache[i].pool, n=pool.length, sz=Math.ceil(n/3);
+  const start=k*sz, end=Math.min(n,(k+1)*sz);
+  const part=pool.slice(start,end);
+  if(!part.length){ alert('该批为空'); return; }
+  const t=part.join(' ');
+  const done=()=>alert('已复制第'+['一','二','三'][k]+'批 '+part.length+' 组（第'+(start+1)+'~'+end+'组）');
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done,done); }
   else{
     const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
